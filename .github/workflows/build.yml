@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 env:
   CARGO_TERM_COLOR: always
@@ -151,3 +152,21 @@ jobs:
 
       - name: Test code snippets
         run: mdbook test
+      
+      - name: Update PO Files and Create PR
+        if: matrix.language != 'en' # Adjust the condition as needed
+        run: |
+          MDBOOK_OUTPUT='{"xgettext": {"pot-file": "messages.pot"}}' mdbook build -d po
+          msgmerge --update po/${{ matrix.language }}.po po/messages.pot
+          # Use GitHub CLI or API to create a PR
+          gh pr create --base main --head your-branch-name --title "Update Documentation for ${{ matrix.language }}" --body "Automatic update of documentation for ${{ matrix.language }}"
+          # You may also add a step to close the PR automatically if needed.
+
+      - name: Close PR
+        if: github.event_name == 'pull_request' && matrix.language != 'en'
+        run: |
+          # Get the PR number from the environment variable
+          pr_number=${{ github.event.pull_request.number }}
+    
+          # Close the PR using GitHub CLI
+          gh pr close $pr_number
